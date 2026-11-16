@@ -6,7 +6,7 @@
 
 namespace wi {
 
-#if defined(__CPU_68K)
+#if defined(__CPU_68K) || defined(__amigaos__)
 #define BigWord(x) (x)
 #define BigDword(x) (x)
 #else

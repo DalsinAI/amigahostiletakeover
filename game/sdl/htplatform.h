@@ -23,8 +23,14 @@
 namespace wi {
 
 #define MakeDword(a, b, c, d) ((a) | ((b) << 8) | ((c) << 16) | ((d) << 24))
+#if defined(__amigaos__)
+// GFOS on 68k is big-endian, like the game's data files.
+#define BigWord(x) (x)
+#define BigDword(x) (x)
+#else
 #define BigWord(x) ((((x)&0xFF)<<8) | (((x)&0xFF00)>>8))
 #define BigDword(x) ((((x)&0xFF)<<24) | (((x)&0xFF00)<<8) | (((x)&0xFF0000)>>8) | (((x)&0xFF000000)>>24))
+#endif
 
 typedef char TCHAR;
 #define TEXT(str) str

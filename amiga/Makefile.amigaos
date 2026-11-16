@@ -1,0 +1,100 @@
+# Hostile Takeover (Warfare Incorporated) for GFOS (AmigaOS 3.2 with
+# GFOpenUp), 68040/68060 + FPU, on GFOpenGPU's SDL 2 kit
+# (LIBS:GFOpenGPU/SDL2.module).
+#
+#   make -f amiga/Makefile.amigaos -j4 [STOVE=/path/to/os32-gcc16-open6]
+#
+# The same sources as upstream's game/sdl/linux/makefile, with the Amiga
+# host layer in amiga/: amigahosthelpers.cpp (files in PROGDIR: and
+# PROGDIR:User) and amigahttprequest.cpp (no libcurl in the kit yet, so
+# online play and mission pack downloads report "no network"). The game
+# data (htdata832.pdb, htsfx.pdb) is big-endian, like the 68k.
+#
+# Output: build/amigaos/HostileTakeover/ (the drawer), its .info and
+# Install-HostileTakeover beside it.
+
+STOVE   ?= $(HOME)/AmiCradle/stoves/os32-gcc16-open6
+PREFIX  ?= $(STOVE)/prefix
+KIT     ?= $(PREFIX)/m68k-amigaos
+CC      = $(PREFIX)/bin/m68k-amigaos-gcc
+CXX     = $(PREFIX)/bin/m68k-amigaos-g++
+STRIP   = $(PREFIX)/bin/m68k-amigaos-strip
+# SDL is hard float: the FPU calling convention must match.
+CPU     ?= -m68040 -m68881
+# -fno-tree-loop-distribute-patterns: GCC 16's loop miscompile.
+OPT     ?= -O2 -fomit-frame-pointer -fno-tree-loop-distribute-patterns
+
+DEFS    = -D__amigaos__ -DSDL -DMULTIPLAYER -DTRACKSTATE
+# amiga/ first: its curl/curl.h stands in for libcurl's.
+INC     = -Iamiga -I. -Ibase -Impshared -Iinc -Igame -Igame/sdl \
+          -I$(KIT)/include/SDL2 -I$(KIT)/include
+CFLAGS  = -noixemul $(OPT) $(CPU) -fsigned-char -w $(DEFS) $(INC)
+CXXFLAGS = -noixemul $(OPT) $(CPU) -fsigned-char -w -Wno-write-strings $(DEFS) $(INC)
+LDFLAGS = -noixemul $(CPU)
+LIBS    = -L$(KIT)/lib -lSDL2 -lpthread -latomic -lm
+
+BUILD   = build/amigaos
+OBJDIR  = $(BUILD)/obj
+NAME    = HostileTakeover
+OUT     = $(BUILD)/$(NAME)
+PROG    = HostileTakeover
+
+GAME_SRC  = $(filter-out game/SocTransport.cpp game/miscgraphics.cpp \
+            game/hashtablecode.cpp game/filepdbreader.cpp game/DebugHelpers.cpp, \
+            $(wildcard game/*.cpp))
+# base/socket*.cpp, selectserver.cpp and game/sdl/host.cpp are built through
+# amiga/net/ (bsdsocket.library names): see amiga/net/amiga_net.h.
+NET_SRC   = base/socket.cpp base/socketaddress.cpp base/selectserver.cpp
+BASE_SRC  = $(filter-out base/epollserver.cpp base/stdindispatcher.cpp $(NET_SRC), $(wildcard base/*.cpp))
+MP_SRC    = $(wildcard mpshared/*.cpp)
+YAJL_SRC  = $(wildcard yajl/src/*.c) \
+            $(filter-out yajl/wrapper/jsonbuilder_test.cpp, $(wildcard yajl/wrapper/*.cpp))
+SDL_SRC   = $(filter-out game/sdl/sdlhttprequest.cpp game/sdl/host.cpp, $(wildcard game/sdl/*.cpp)) \
+            game/sdl/linux/linuxchatcontroller.cpp
+AMIGA_SRC = amiga/amigahosthelpers.cpp amiga/amigahttprequest.cpp amiga/amiga_start.c \
+            amiga/net/amiga_net.c amiga/net/socket.cpp amiga/net/socketaddress.cpp \
+            amiga/net/selectserver.cpp amiga/net/host.cpp
+
+SRC     = $(GAME_SRC) $(BASE_SRC) $(MP_SRC) inc/rip.cpp $(YAJL_SRC) $(SDL_SRC) $(AMIGA_SRC)
+OBJS    = $(patsubst %.c,$(OBJDIR)/%.o,$(patsubst %.cpp,$(OBJDIR)/%.o,$(SRC)))
+
+all: $(OUT)/$(PROG) package
+
+$(BUILD)/$(PROG).debug: $(OBJS)
+	@mkdir -p $(BUILD)
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+$(OUT)/$(PROG): $(BUILD)/$(PROG).debug
+	@mkdir -p $(OUT)
+	$(STRIP) -o $@ $<
+
+package: $(OUT)/$(PROG) AMIGA_PORT.md README.md LICENSE.txt
+	mkdir -p $(OUT)/User
+	cp game/htdata832.pdb game/htsfx.pdb $(OUT)/
+	cp AMIGA_PORT.md $(OUT)/ReadMe
+	cp README.md $(OUT)/ReadMe-HostileTakeover
+	cp LICENSE.txt $(OUT)/COPYING.txt
+	cp amiga/icons/$(PROG).info amiga/icons/ReadMe.info $(OUT)/
+	for f in ReadMe-HostileTakeover COPYING.txt; do \
+	    cp amiga/icons/ReadMe.info $(OUT)/$$f.info; done
+	cp amiga/icons/Data.info $(OUT)/User.info
+	cp amiga/icons/$(NAME)-drawer.info $(BUILD)/$(NAME).info
+	cp amiga/Install-$(NAME) amiga/Install-$(NAME).info $(BUILD)/
+
+# upstream's main.cpp names its entry SDL_main except on Linux.
+$(OBJDIR)/game/sdl/main.o: game/sdl/main.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -DSDL_main=main -c -o $@ $<
+
+$(OBJDIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+clean:
+	rm -rf $(BUILD)
+
+.PHONY: all package clean
