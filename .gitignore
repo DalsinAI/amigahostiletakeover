@@ -1,0 +1,14 @@
+.DS_Store
+*.pidb
+*.userprefs
+*.project
+*.classpath
+bin/
+libs/
+obj/
+gen/
+debug/
+release/
+/game/wi.xcodeproj/project.xcworkspace/
+/game/wi.xcodeproj/xcuserdata/
+/DerivedData/
