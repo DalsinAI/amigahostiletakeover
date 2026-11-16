@@ -30,8 +30,11 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <net/if.h>
-#include <proto/exec.h>
 #include <proto/bsdsocket.h>
+/* exec's inline names would hit base/'s Wait(), Signal() and Remove(). */
+#undef Wait
+#undef Signal
+#undef Remove
 
 #ifdef __cplusplus
 extern "C" {
