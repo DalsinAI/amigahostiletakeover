@@ -42,13 +42,18 @@ PROG    = HostileTakeover
 GAME_SRC  = $(filter-out game/SocTransport.cpp game/miscgraphics.cpp \
             game/hashtablecode.cpp game/filepdbreader.cpp game/DebugHelpers.cpp, \
             $(wildcard game/*.cpp))
-BASE_SRC  = $(filter-out base/epollserver.cpp base/stdindispatcher.cpp, $(wildcard base/*.cpp))
+# base/socket*.cpp, selectserver.cpp and game/sdl/host.cpp are built through
+# amiga/net/ (bsdsocket.library names): see amiga/net/amiga_net.h.
+NET_SRC   = base/socket.cpp base/socketaddress.cpp base/selectserver.cpp
+BASE_SRC  = $(filter-out base/epollserver.cpp base/stdindispatcher.cpp $(NET_SRC), $(wildcard base/*.cpp))
 MP_SRC    = $(wildcard mpshared/*.cpp)
 YAJL_SRC  = $(wildcard yajl/src/*.c) \
             $(filter-out yajl/wrapper/jsonbuilder_test.cpp, $(wildcard yajl/wrapper/*.cpp))
-SDL_SRC   = $(filter-out game/sdl/sdlhttprequest.cpp, $(wildcard game/sdl/*.cpp)) \
+SDL_SRC   = $(filter-out game/sdl/sdlhttprequest.cpp game/sdl/host.cpp, $(wildcard game/sdl/*.cpp)) \
             game/sdl/linux/linuxchatcontroller.cpp
-AMIGA_SRC = amiga/amigahosthelpers.cpp amiga/amigahttprequest.cpp amiga/amiga_start.c
+AMIGA_SRC = amiga/amigahosthelpers.cpp amiga/amigahttprequest.cpp amiga/amiga_start.c \
+            amiga/net/amiga_net.c amiga/net/socket.cpp amiga/net/socketaddress.cpp \
+            amiga/net/selectserver.cpp amiga/net/host.cpp
 
 SRC     = $(GAME_SRC) $(BASE_SRC) $(MP_SRC) inc/rip.cpp $(YAJL_SRC) $(SDL_SRC) $(AMIGA_SRC)
 OBJS    = $(patsubst %.c,$(OBJDIR)/%.o,$(patsubst %.cpp,$(OBJDIR)/%.o,$(SRC)))
